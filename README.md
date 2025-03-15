@@ -6,7 +6,7 @@ Signals can depend on other Signals and are recomputed each time on of their dep
 Effects execute everytime one of their depencies change.
 
 ### Importing
-If you dont't use roblox, replace the PathToModule with the string. Everything else stays the same.
+If you don't use roblox, replace the PathToModule with the string. Everything else stays the same.
 ```lua
 local Signal = require(PathToModule)
 local createSignal = Signal.createSignal
@@ -14,49 +14,12 @@ local deriveSignal = Signal.deriveSignal
 local effect = Signal.effect
 ```
 
-### Setters and Getters
-
-The createSignal function takes a value and return two values:
-- read: a function that when called returns the value the signal contains
-- write: a function that when called with a value sets the signal to that value
-
-```lua
-local readNum, writeNum = createSignal(3) -- Signal with the value 3
-local num = readNum() -- get the current value of the signal
-writeNum(5) -- readNum() now returns 5
-```
-
-### Deriving signals
-Imagine excel, where cells depend on other cells. Signals are the same.
-```lua
-local firstName, setFirstName = createSignal("John")
-local lastName, setLastName = createSignal("Doe")
-
-local fullName = deriveSignal(function()
-  return firstName() .. " " .. lastName()
-end)
-
-print("full name is: ", fullName())
-```
-
-deriveSignal takes a function that computes a value and returns a function that reads the value.
-Derived signals have the following properties:
-- fullName() == firstName() .. " " .. lastName() always returns true. <p> Everytime firstName or lastName changes, fullName gets recomputed.
-
-When deriving, the function given to deriveSignal gets executed once to recompute the value for the first time.
-Derived Signals shouldn't perform mutations in their function. Thats what effects are for.
-
-### Effects
-
-```lua
-local age, setAge = createSignal(30)
-
-effect(function()
-  print(fullName() .. " is now " .. age() .. " years old")
-end)
-```
-
-effect takes a function that returns something. The function gets executed everytime one of its depencies change. <p> In the example above it means that everytime fullName or age changes, the effect gets executed again. Effects also get executed once when they are created.
+### Documentation
+- `local read, write = createSignal(value)`: <p> - returns a read and write function: <p> - read: returns the value of the signal <p> - write: takes a value and sets the signal to that value
+- `local read = deriveSignal(function() return ... end)`: <p> - Executes the function that is passed in everytime one of its dependencies changes <p> - Returns a signal that is updated with the return value of the function everytime one of its dependencies changes <p>  -The function should be pure
+- `effect(function() ... end`: <p> - Executes the function that is passed in everytime one of its dependencies changes <p> - The function should be impure as returning something from it doesn't do anything
+- `local value = untrack(function() return ... end)`: <p> - Executes a function without registering dependencies <p> - Returns the value the passed in function returns or nil
+- `local read = on({dep1, dep2, ...}, function() ... end)`: <p> - {dep1, ...}: A array of signal getters. Whenever one of the passed in signals changes, the function gets rerun <p> - takes a function as second parameter that gets executed whenever one of its passed in dependencies changes. Getters in the function body aren't registered as dependencies
 
 ## This seems like magic. How does each function know its dependencies?
 Its complicated. I essentially translated this [article](https://dev.to/ryansolid/building-a-reactive-library-from-scratch-1i0p) into lua. I don't rebuild the dependencies on every run though, so if you had a branched derived Signal or effect, it would rexecute when those change too. Dependencies are registered when the read function for the dependency is called inside the function, so branching may manipulate the executing of effects in ways you wouldn't predict.
