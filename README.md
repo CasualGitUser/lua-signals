@@ -1,7 +1,7 @@
 # lua-signals
 
 ### Importing
-This is a roblox library. Some methods are type annotated, so using normal lua will cause errors.
+This is a roblox library. Some methods are type annotated, so using normal lua will cause errors. Simply copy the code from main.lua into a module.
 ```lua
 local Signal = require(PathToModule)
 local createSignal = Signal.createSignal
