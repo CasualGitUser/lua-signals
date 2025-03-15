@@ -25,18 +25,36 @@ end
 
 --reactive stack
 local reactiveStack = {}
+--wether dependencies are currently tracked
+local tracking = true
 
+--utility func to register f on the reactive stack
+local function reactiveFunc(f)
+  local funcObject = {}
+  funcObject.execute = function()
+    table.insert(reactiveStack, funcObject)
+    f()
+    table.remove(reactiveStack, #reactiveStack)
+  end
+  return funcObject
+end
+
+--state signal
+-- @param value: T
+-- @returns read: () -> T
+-- @returns write: (T) -> ()
 local function createSignal(value)
   local dependents = Set.new()
 
   local read = function()
     local dependent = reactiveStack[#reactiveStack]
-    if dependent then dependents:add(dependent) end
+    if dependent and tracking then dependents:add(dependent) end
     return value
   end
 
   local write = function(newValue)
     value = newValue
+    if not tracking then return end
     for _, dependent in dependents:iter() do
       dependent:execute()
     end
@@ -45,32 +63,56 @@ local function createSignal(value)
   return read, write
 end
 
+--derived signals
+-- @param f: () -> T
+-- @returns read: () -> T
 local function deriveSignal(f)
   local read, write = createSignal(nil)
-  local deriveFunc = {}
-  deriveFunc.execute = function()
-    table.insert(reactiveStack, deriveFunc)
-    write(f())
-    table.remove(reactiveStack, #reactiveStack)
-  end
 
-  deriveFunc.execute()
+  reactiveFunc(function()
+    write(f())
+  end):execute()
+
   return read
 end
 
+--effect
 local function effect(e)
-  local effect = {}
-  effect.execute = function()
-    table.insert(reactiveStack, effect)
+  reactiveFunc(function()
     e()
-    table.remove(reactiveStack, #reactiveStack)
-  end
-
-  effect.execute()
+  end):execute()
 end
 
+--don't track dependencies of f
+-- @param f: () -> T
+-- @returns T
+local function untrack(f)
+  tracking = false
+  local val = f()
+  tracking = true
+  return val
+end
+
+--only change when one of dependencies change
+-- @param dependencies: {Getter}
+-- @param f: () -> ()
+local function on(dependencies, f)
+  local read, write = createSignal(nil)
+  reactiveFunc(function()
+    for _, dependency in ipairs(dependencies) do
+      dependency()
+    end
+    write(untrack(f))
+  end):execute()
+
+  return read
+end
+
+--exports
 return {
   createSignal = createSignal,
   deriveSignal = deriveSignal,
-  effect = effect
+  effect = effect,
+  untrack = untrack,
+  on = on
 }
